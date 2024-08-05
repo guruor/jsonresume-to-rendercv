@@ -4,6 +4,7 @@ setup(
     name="jsonresume-to-rendercv",
     version="0.1.0",
     packages=find_packages(),
+    setup_requires=['wheel'],
     install_requires=[
         "jsonschema",
         "requests",
@@ -27,7 +28,7 @@ setup(
     author="Govind Singh",
     author_email="connect.govinds@gmail.com",
     description="A CLI tool to convert JSON Resume schema to RenderCV schema",
-    long_description=open("README.md").read(),
+    long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/guruor/jsonresume-to-rendercv",
     classifiers=[
