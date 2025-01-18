@@ -144,16 +144,27 @@ class JSONResumeConverter:
         ]
 
     def format_technologies(self, skills):
-        languages = next(
-            (skill["keywords"] for skill in skills if skill["name"] == "Languages"), []
-        )
-        software = next(
-            (skill["keywords"] for skill in skills if skill["name"] == "Software"), []
-        )
-        return [
-            {"label": "Languages", "details": ", ".join(languages)},
-            {"label": "Software", "details": ", ".join(software)},
-        ]
+        skill_categories = {}
+        
+        for skill in skills:
+            category_name = skill["name"]
+            keywords = skill.get("keywords", [])
+            
+            if category_name not in skill_categories:
+                skill_categories[category_name] = keywords
+            else:
+                skill_categories[category_name].extend(keywords)
+        
+        formatted_skills = []
+        for category, keywords in skill_categories.items():
+            formatted_skills.append({
+                "label": category,
+                "details": ", ".join(keywords)
+            })
+        
+        return formatted_skills
+
+        
 
     def convert(self):
         return yaml.dump(self.render_cv, sort_keys=False)
