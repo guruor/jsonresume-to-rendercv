@@ -32,22 +32,36 @@ class JSONResumeConverter:
     def __init__(self, json_resume):
         self.json_resume = json_resume
         basics = json_resume["basics"]
-        self.render_cv = {
-            "cv": {
-                "name": basics["name"],
-                "location": self.format_location(basics.get("location")),
-                "email": basics["email"],
-                "phone": basics["phone"],
-                "website": basics.get("url", ""),
-                "social_networks": self.format_social_networks(
-                    basics.get("profiles", [])
-                ),
-                "sections": {},
-            }
+        
+        # Build cv dict with required fields
+        cv_dict = {
+            "name": basics["name"],
+            "email": basics["email"],
+            "phone": basics["phone"],
+            "sections": {},
         }
+        
+        # Add optional fields only if they have valid values
+        location = self.format_location(basics.get("location"))
+        if location:
+            cv_dict["location"] = location
+            
+        if basics.get("url"):
+            cv_dict["website"] = basics["url"]
+            
+        social_networks = self.format_social_networks(basics.get("profiles", []))
+        if social_networks:
+            cv_dict["social_networks"] = social_networks
+        
+        self.render_cv = {"cv": cv_dict}
 
-        sections = {
-            "summary": [basics.get("summary", "")],
+        sections = {}
+        
+        # Add summary if present
+        if basics.get("summary"):
+            sections["summary"] = [basics["summary"]]
+            
+        sections.update({
             "education": self.format_education(json_resume.get("education", [])),
             "experience": self.format_experience(json_resume.get("work", [])),
             "publications": self.format_publications(
@@ -56,7 +70,7 @@ class JSONResumeConverter:
             "projects": self.format_projects(json_resume.get("projects", [])),
             "technologies": self.format_technologies(json_resume.get("skills", [])),
             "awards": self.format_awards(json_resume.get("awards", [])),
-        }
+        })
 
         # Removing optional sections when empty
         for key, section in sections.items():
@@ -66,12 +80,13 @@ class JSONResumeConverter:
     def format_location(self, location):
         if location:
             return f"{location['city']}, {location['countryCode']}"
-        return ""
+        return None
 
     def format_social_networks(self, profiles):
         social_networks = []
         for profile in profiles:
-            network = self.networks.get(profile["network"])
+            network_key = profile["network"].lower()
+            network = self.networks.get(network_key)
             if not network:
                 print(f"Falling back to default network: {self.default_network}")
                 network = self.networks.get(self.default_network)
@@ -98,17 +113,19 @@ class JSONResumeConverter:
         ]
 
     def format_experience(self, work):
-        return [
-            {
+        formatted_work = []
+        for job in work:
+            experience = {
                 "company": job["name"],
                 "position": job["position"],
-                "location": job.get("location", ""),
                 "start_date": job["startDate"],
                 "end_date": job.get("endDate", "present"),
                 "highlights": job.get("highlights", []),
             }
-            for job in work
-        ]
+            if job.get("location"):
+                experience["location"] = job["location"]
+            formatted_work.append(experience)
+        return formatted_work
 
     def format_publications(self, publications):
         optional_fields = ["doi", "url"]
@@ -129,14 +146,15 @@ class JSONResumeConverter:
         return formatted_publications
 
     def format_projects(self, projects):
-        return [
-            {
-                "name": proj["name"],
-                "date": proj.get("startDate", ""),
-                "highlights": [proj["description"]] if "description" in proj else [],
-            }
-            for proj in projects
-        ]
+        formatted_projects = []
+        for proj in projects:
+            project = {"name": proj["name"]}
+            if proj.get("startDate"):
+                project["date"] = proj["startDate"]
+            if "description" in proj:
+                project["highlights"] = [proj["description"]]
+            formatted_projects.append(project)
+        return formatted_projects
 
     def format_awards(self, awards):
         return [
@@ -170,14 +188,14 @@ def convert(input_file, output_file):
             sys.exit(1)
 
     # Validate the input JSON against the JSON Resume schema
-    input_validator = SchemaValidator(JSON_RESUME_SCHEMA_URL)
+    input_validator = SchemaValidator(JSON_RESUME_SCHEMA_URL, "Input JSON Resume")
     input_validator.validate_json(json_resume)
 
     converter = JSONResumeConverter(json_resume)
     yaml_output = converter.convert()
 
     # Validate the output YAML against the RenderCV schema
-    output_validator = SchemaValidator(RENDER_CV_SCHEMA_URL)
+    output_validator = SchemaValidator(RENDER_CV_SCHEMA_URL, "Output RenderCV")
     render_cv_data = yaml.safe_load(yaml_output)
     output_validator.validate_yaml(render_cv_data)
 
